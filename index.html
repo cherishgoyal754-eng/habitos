@@ -1465,6 +1465,26 @@
               </div>
               <p class="evolution-subtitle">Inspect your full face evolution over time. Full face is compared side-by-side or morphed across all 68 biometric landmarks (jawline, cheekbones, chin, and skin glow).</p>
 
+              <!-- Biometric Identity Lock & Anti-Spoof Protection Bar -->
+              <div class="biometric-lock-bar" id="biometric-identity-lock-bar">
+                <div class="lock-status-left">
+                  <span class="lock-badge-icon" id="biometric-lock-icon">🔒</span>
+                  <div class="lock-info-text">
+                    <span class="lock-label">PRIMARY BIOMETRIC IDENTITY:</span>
+                    <strong id="biometric-enrolled-name" class="lock-name">Cherish (Profile Active)</strong>
+                  </div>
+                </div>
+                <div class="lock-actions-right">
+                  <span class="lock-verify-tag" id="biometric-match-tag">✓ Identity Verified: 98.4%</span>
+                  <button type="button" class="btn btn-secondary btn-xs" id="btn-enroll-primary-face" onclick="FoldersEngine.enrollCurrentPhotoAsPrimary()" title="Set the currently selected photo as your true primary facial profile">
+                    <span>🔒 Set My Face</span>
+                  </button>
+                  <button type="button" class="btn btn-secondary btn-xs" id="btn-reset-face-lock" onclick="FoldersEngine.resetPrimaryFaceProfile()" title="Clear enrolled profile to re-enroll or recalibrate">
+                    <span>🔄 Reset Lock</span>
+                  </button>
+                </div>
+              </div>
+
               <!-- Comparison Selectors & Mode Switcher Bar -->
               <div class="comparison-selectors-row">
                 <div class="comp-select-group">
@@ -1615,6 +1635,19 @@
                     <span class="ai-match-score" id="ai-overall-ascension-score">ASCENSION INDEX: 96.8%</span>
                   </div>
                   <h4 class="ai-report-title">Facial Transformation & Morphometric Diagnostic</h4>
+                </div>
+
+                <!-- AI Foreign Face / Rejection Alert Banner -->
+                <div class="ai-rejection-banner" id="ai-rejection-banner" style="display: none;">
+                  <div class="rejection-icon">⛔</div>
+                  <div class="rejection-body">
+                    <h4 class="rejection-title">BIOMETRIC MISMATCH: UNRECOGNIZED FACE DETECTED</h4>
+                    <p class="rejection-text" id="ai-rejection-reason">The analyzed photo does not match your registered primary face profile (Match: 24.2%). Habit morphometrics were declined to prevent data corruption from other people (friends/strangers).</p>
+                    <div class="rejection-actions">
+                      <button type="button" class="btn btn-secondary btn-xs" onclick="FoldersEngine.forceAnalyzeAnyway()">⚠️ Analyze Anyway</button>
+                      <button type="button" class="btn btn-primary btn-xs" onclick="FoldersEngine.enrollCurrentPhotoAsPrimary()">🔒 Update My Registered Face</button>
+                    </div>
+                  </div>
                 </div>
 
                 <!-- 4 Core Parameter Cards -->

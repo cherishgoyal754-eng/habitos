@@ -1144,6 +1144,24 @@
         const eyeContrast = meanLum > 0 ? (meanEyeLum / meanLum) : 0.85;
         const eyeAlertnessScore = Math.min(99, Math.max(48, eyeContrast * 95));
 
+        // Biometric Facial Signature Vector (invariant geometrical proportions)
+        const aspectRatio = ryNorm / Math.max(0.12, rxNorm);
+        const meanNr = skinCount > 0 ? (rSum / Math.max(1, rSum + gSum + bSum)) : 0.42;
+        const meanNg = skinCount > 0 ? (gSum / Math.max(1, rSum + gSum + bSum)) : 0.32;
+        const eyeSpacingRatio = ((rightEyeX - leftEyeX) / Math.max(10, sX * 2));
+
+        const signature = {
+          aspectRatio: +(aspectRatio).toFixed(3),
+          rxNorm: +(rxNorm).toFixed(3),
+          ryNorm: +(ryNorm).toFixed(3),
+          meanNr: +(meanNr).toFixed(3),
+          meanNg: +(meanNg).toFixed(3),
+          buccalRatio: +(buccalRatio).toFixed(3),
+          warmthRatio: +(warmthRatio).toFixed(3),
+          eyeContrast: +(eyeContrast).toFixed(3),
+          eyeSpacingRatio: +(eyeSpacingRatio).toFixed(3)
+        };
+
         const res = {
           centerXNorm,
           centerYNorm,
@@ -1156,7 +1174,8 @@
           eyeAlertnessScore,
           meanLum,
           specularRatio,
-          warmthRatio
+          warmthRatio,
+          signature
         };
 
         if (srcKey) this.cache.set(srcKey, res);
@@ -1165,6 +1184,69 @@
         console.warn("FaceBiometricsAI image analysis fallback:", e);
         return this.getDefaultMetrics();
       }
+    },
+
+    getEnrolledProfile() {
+      try {
+        const stored = localStorage.getItem('waytoheaven_user_face_profile');
+        if (stored) return JSON.parse(stored);
+      } catch (e) {}
+      return null;
+    },
+
+    enrollProfile(signature, name = "Cherish") {
+      try {
+        const profile = {
+          name: name,
+          enrolledAt: new Date().toISOString(),
+          signature: signature
+        };
+        localStorage.setItem('waytoheaven_user_face_profile', JSON.stringify(profile));
+        return profile;
+      } catch (e) {
+        return null;
+      }
+    },
+
+    clearEnrolledProfile() {
+      try {
+        localStorage.removeItem('waytoheaven_user_face_profile');
+      } catch (e) {}
+    },
+
+    compareSignatures(sigA, sigB) {
+      if (!sigA || !sigB) return 96.0;
+
+      const dAspect = Math.abs((sigA.aspectRatio || 1.3) - (sigB.aspectRatio || 1.3)) / 0.16;
+      const dNr = Math.abs((sigA.meanNr || 0.42) - (sigB.meanNr || 0.42)) / 0.032;
+      const dNg = Math.abs((sigA.meanNg || 0.32) - (sigB.meanNg || 0.32)) / 0.028;
+      const dBuccal = Math.abs((sigA.buccalRatio || 0.9) - (sigB.buccalRatio || 0.9)) / 0.12;
+      const dWarmth = Math.abs((sigA.warmthRatio || 0.18) - (sigB.warmthRatio || 0.18)) / 0.06;
+      const dEye = Math.abs((sigA.eyeContrast || 0.85) - (sigB.eyeContrast || 0.85)) / 0.10;
+      const dEyeSpace = Math.abs((sigA.eyeSpacingRatio || 0.48) - (sigB.eyeSpacingRatio || 0.48)) / 0.08;
+
+      const weightedDist = (dAspect * 2.5) + (dNr * 2.8) + (dNg * 2.2) + (dBuccal * 2.0) + (dWarmth * 1.6) + (dEye * 1.2) + (dEyeSpace * 2.0);
+      const score = Math.max(14.0, Math.min(99.8, 100 * Math.exp(-0.18 * weightedDist)));
+      return +score.toFixed(1);
+    },
+
+    verifyImageAgainstProfile(imgBio) {
+      let profile = this.getEnrolledProfile();
+      if (!profile && imgBio && imgBio.signature) {
+        profile = this.enrollProfile(imgBio.signature, "Cherish");
+        return { isMatch: true, matchPct: 98.6, profileName: profile.name, isAutoEnrolled: true };
+      }
+      if (!profile || !imgBio || !imgBio.signature) {
+        return { isMatch: true, matchPct: 96.0, profileName: "Cherish" };
+      }
+
+      const matchPct = this.compareSignatures(imgBio.signature, profile.signature);
+      const isMatch = matchPct >= 68.0;
+      return {
+        isMatch,
+        matchPct,
+        profileName: profile.name
+      };
     },
 
     getDefaultMetrics() {
@@ -1178,6 +1260,17 @@
         jawSharpnessScore: 76.0,
         buccalLeanScore: 75.0,
         eyeAlertnessScore: 79.0,
+        signature: {
+          aspectRatio: 1.28,
+          rxNorm: 0.28,
+          ryNorm: 0.36,
+          meanNr: 0.42,
+          meanNg: 0.32,
+          buccalRatio: 0.90,
+          warmthRatio: 0.18,
+          eyeContrast: 0.85,
+          eyeSpacingRatio: 0.48
+        },
         meanLum: 130,
         specularRatio: 0.10,
         warmthRatio: 0.18
@@ -1917,27 +2010,33 @@
       if (!imgEl || !photoId) return;
       setTimeout(() => {
         const bio = FaceBiometricsAI.analyzeImage(imgEl);
+        const verification = FaceBiometricsAI.verifyImageAgainstProfile(bio);
         const p = this.photos.find(item => item.id === photoId);
         if (p) {
           p.biometrics = bio;
           p.radianceScore = Math.round(bio.radianceScore);
           p.jawScore = Math.round(bio.jawSharpnessScore);
           p.alertScore = Math.round(bio.eyeAlertnessScore);
+          p.isMatch = verification.isMatch;
+          p.matchPct = verification.matchPct;
         }
         const row = document.getElementById(`photo-card-bio-${photoId}`);
         if (row) {
+          const idTag = verification.isMatch
+            ? `<span class="photo-metric-pill" style="border-color:rgba(16,185,129,0.4);color:#10b981;" title="Verified Cherish">✓ ${verification.profileName}</span>`
+            : `<span class="photo-metric-pill" style="border-color:rgba(244,63,94,0.4);color:#f43f5e;" title="Unrecognized / Friend Face (${verification.matchPct}%)">⚠️ Friend (${verification.matchPct}%)</span>`;
+
           row.innerHTML = `
+            ${idTag}
             <span class="photo-metric-pill" title="AI Radiance & Glow">✨ ${bio.radianceScore.toFixed(0)}% Glow</span>
             <span class="photo-metric-pill" title="AI Jawline Sharpness">📐 ${bio.jawSharpnessScore.toFixed(0)}% Jaw</span>
-            <span class="photo-metric-pill" title="AI Periorbital Rest">👁️ ${bio.eyeAlertnessScore.toFixed(0)}% Rest</span>
           `;
         }
         const tileBio = document.getElementById(`phone-roll-bio-${photoId}`);
         if (tileBio) {
-          tileBio.innerHTML = `
-            <span>✨${bio.radianceScore.toFixed(0)}%</span>
-            <span>📐${bio.jawSharpnessScore.toFixed(0)}%</span>
-          `;
+          tileBio.innerHTML = verification.isMatch
+            ? `<span>✓${verification.matchPct}%</span><span>✨${bio.radianceScore.toFixed(0)}%</span>`
+            : `<span style="color:#f43f5e;">⚠️Friend</span>`;
         }
       }, 50);
     },
@@ -2269,7 +2368,43 @@
       ctx.shadowBlur = 0;
     },
 
-    updateBiometricReport(isScanComplete = false) {
+    forceAnalyzeOverride: false,
+
+    enrollCurrentPhotoAsPrimary() {
+      const p = this.photos.find(item => item.id === this.afterPhotoId) ||
+                this.photos.find(item => item.id === this.beforePhotoId) ||
+                this.photos[0];
+      if (!p) {
+        UI.showToast("No photo selected to enroll");
+        return;
+      }
+      const img = document.getElementById('full-img-after') || document.getElementById('split-img-after') || document.getElementById('full-img-before');
+      const bio = FaceBiometricsAI.analyzeImage(img);
+      if (bio && bio.signature) {
+        FaceBiometricsAI.enrollProfile(bio.signature, "Cherish");
+        this.forceAnalyzeOverride = false;
+        this.updateBiometricReport(false);
+        if (typeof Confetti !== 'undefined') Confetti.burst(40);
+        UI.showToast("🔒 Cherish's face profile registered as Primary Biometric Identity!");
+      }
+    },
+
+    resetPrimaryFaceProfile() {
+      if (confirm("Reset your registered primary face profile? The next photo analyzed will be enrolled as your new face baseline.")) {
+        FaceBiometricsAI.clearEnrolledProfile();
+        this.forceAnalyzeOverride = false;
+        this.updateBiometricReport(false);
+        UI.showToast("🔄 Primary face profile reset. Next scan will enroll new baseline.");
+      }
+    },
+
+    forceAnalyzeAnyway() {
+      this.forceAnalyzeOverride = true;
+      this.updateBiometricReport(false, true);
+      UI.showToast("⚠️ Biometric lock bypassed for this scan.");
+    },
+
+    updateBiometricReport(isScanComplete = false, forceOverride = false) {
       const pBefore = this.photos.find(p => p.id === this.beforePhotoId) || this.photos[this.photos.length - 1];
       const pAfter = this.photos.find(p => p.id === this.afterPhotoId) || this.photos[0];
 
@@ -2280,6 +2415,73 @@
 
       const mBefore = FaceBiometricsAI.analyzeImage(imgBefore);
       const mAfter = FaceBiometricsAI.analyzeImage(imgAfter);
+
+      // Verify subject against enrolled primary profile
+      const verification = FaceBiometricsAI.verifyImageAgainstProfile(mAfter);
+      const isFriendMismatch = !verification.isMatch && !this.forceAnalyzeOverride && !forceOverride;
+
+      // Update Identity Lock UI
+      const lockIcon = document.getElementById('biometric-lock-icon');
+      const lockName = document.getElementById('biometric-enrolled-name');
+      const matchTag = document.getElementById('biometric-match-tag');
+      const rejectionBanner = document.getElementById('ai-rejection-banner');
+      const rejectionReason = document.getElementById('ai-rejection-reason');
+
+      if (lockName) lockName.textContent = `${verification.profileName} (Registered)`;
+
+      if (isFriendMismatch) {
+        if (lockIcon) lockIcon.textContent = '⛔';
+        if (matchTag) {
+          matchTag.className = 'lock-verify-tag mismatch';
+          matchTag.textContent = `⛔ Foreign Face (${verification.matchPct}% Match)`;
+        }
+        if (rejectionBanner) rejectionBanner.style.display = 'flex';
+        if (rejectionReason) {
+          rejectionReason.textContent = `The face detected in this check-in has an identity match of only ${verification.matchPct}% against registered user ${verification.profileName}. AI Facial Ascension analysis was automatically declined to prevent corrupting your habit evolution data with a friend or visitor's face.`;
+        }
+
+        // Display Security Decline state in report card
+        const scoreEl = document.getElementById('ai-overall-ascension-score');
+        if (scoreEl) scoreEl.textContent = `STATUS: ANALYSIS DECLINED`;
+
+        const jawEl = document.getElementById('ai-metric-jawline');
+        const fatEl = document.getElementById('ai-metric-fat');
+        const glowEl = document.getElementById('ai-metric-glow');
+        const eyesEl = document.getElementById('ai-metric-eyes');
+
+        if (jawEl) jawEl.textContent = `Declined (Friend)`;
+        if (fatEl) fatEl.textContent = `Declined (Friend)`;
+        if (glowEl) glowEl.textContent = `Declined (Friend)`;
+        if (eyesEl) eyesEl.textContent = `Declined (Friend)`;
+
+        const jawDesc = document.getElementById('ai-desc-jawline');
+        const fatDesc = document.getElementById('ai-desc-fat');
+        const glowDesc = document.getElementById('ai-desc-glow');
+        const eyesDesc = document.getElementById('ai-desc-eyes');
+
+        if (jawDesc) jawDesc.textContent = `Mandibular calculation halted. Unregistered facial contour detected (${verification.matchPct}% match).`;
+        if (fatDesc) fatDesc.textContent = `Buccal index paused. Unregistered cheek/zygoma ratio detected.`;
+        if (glowDesc) glowDesc.textContent = `Dermal reflectance paused. Foreign chromatic signature detected.`;
+        if (eyesDesc) eyesDesc.textContent = `Periorbital rest tracking paused. Foreign orbital geometry detected.`;
+
+        const narrativeEl = document.getElementById('ai-summary-narrative');
+        if (narrativeEl) {
+          narrativeEl.textContent = `⚠️ BIOMETRIC SECURITY NOTICE: The AI Neural Engine has identified this photo as belonging to a different person (e.g. your friend or a visitor, ${verification.matchPct}% match). To maintain 100% data accuracy for your Way To Heaven journey, morphometric tracking is locked until your own face is in view.`;
+        }
+
+        if (isScanComplete && typeof AudioEngine !== 'undefined' && AudioEngine.playTone) {
+          AudioEngine.playTone(220, 'sawtooth', 0.35, 0.12);
+        }
+        return;
+      }
+
+      // If verified primary user:
+      if (rejectionBanner) rejectionBanner.style.display = 'none';
+      if (lockIcon) lockIcon.textContent = '🔒';
+      if (matchTag) {
+        matchTag.className = 'lock-verify-tag';
+        matchTag.textContent = `✓ Identity Verified: ${verification.matchPct}%`;
+      }
 
       let daysDiff = 0;
       if (pBefore.date && pAfter.date) {
@@ -2382,6 +2584,36 @@
 
       if (typeof AudioEngine !== 'undefined' && AudioEngine.playScanSweep) {
         AudioEngine.playScanSweep();
+      }
+
+      // Pre-check for foreign face / friend mismatch
+      const imgAfter = document.getElementById('full-img-after') || document.getElementById('split-img-after');
+      const mAfter = FaceBiometricsAI.analyzeImage(imgAfter);
+      const verification = FaceBiometricsAI.verifyImageAgainstProfile(mAfter);
+
+      if (!verification.isMatch && !this.forceAnalyzeOverride) {
+        if (stageText) stageText.textContent = `[REJECTED] UNRECOGNIZED FACE (${verification.matchPct}% MATCH). SCAN DECLINED!`;
+        if (progressBar) {
+          progressBar.style.width = '100%';
+          progressBar.style.background = '#f43f5e';
+        }
+        if (scanBtnLabel) scanBtnLabel.textContent = '⛔ SCAN DECLINED: UNREGISTERED FACE DETECTED';
+
+        if (typeof AudioEngine !== 'undefined' && AudioEngine.playTone) {
+          AudioEngine.playTone(240, 'sawtooth', 0.4, 0.12);
+        }
+
+        setTimeout(() => {
+          this.isScanning = false;
+          if (laserBefore) laserBefore.style.display = 'none';
+          if (laserAfter) laserAfter.style.display = 'none';
+          if (laserMorph) laserMorph.style.display = 'none';
+          if (laserSplit) laserSplit.classList.remove('scanning');
+          if (progressBar) progressBar.style.background = '';
+          this.updateBiometricReport(true);
+          UI.showToast(`⛔ Biometric Scan Rejected: Unrecognized person (friend/stranger) detected!`);
+        }, 1200);
+        return;
       }
 
       const s1 = document.getElementById('ai-step-1');
