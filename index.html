@@ -1459,35 +1459,117 @@
               <div class="evolution-card-header">
                 <div class="evolution-title-wrap">
                   <span class="evolution-glyph">⚖️</span>
-                  <h3 class="evolution-title">Before & After Face Evolution</h3>
+                  <h3 class="evolution-title">Full Face Transformation & Biometric Evolution</h3>
                 </div>
-                <span class="evolution-days-badge" id="evolution-days-badge">Comparing Transformation</span>
+                <span class="evolution-days-badge" id="evolution-days-badge">Comparing Full Face Transformation</span>
               </div>
-              <p class="evolution-subtitle">Drag the split handle left and right to inspect changes in your face, skin tone, jawline, and alertness over time.</p>
+              <p class="evolution-subtitle">Inspect your full face evolution over time. Full face is compared side-by-side or morphed across all 68 biometric landmarks (jawline, cheekbones, chin, and skin glow).</p>
 
-              <!-- Comparison Selectors -->
+              <!-- Comparison Selectors & Mode Switcher Bar -->
               <div class="comparison-selectors-row">
                 <div class="comp-select-group">
-                  <label>BEFORE (Baseline):</label>
+                  <label>BEFORE (Baseline Full Face):</label>
                   <select id="select-before-photo" class="table-select"></select>
                 </div>
                 <div class="comp-arrow-divider">➔</div>
                 <div class="comp-select-group">
-                  <label>AFTER (Progress):</label>
+                  <label>AFTER (Progress Full Face):</label>
                   <select id="select-after-photo" class="table-select"></select>
                 </div>
+              </div>
+
+              <!-- Full Face View Mode Tabs -->
+              <div class="face-view-mode-bar" id="face-view-mode-bar">
+                <button type="button" class="view-mode-pill active" id="btn-comp-mode-side" onclick="FoldersEngine.setCompViewMode('side')">
+                  <span>👥 Full Face Side-by-Side (100% Face)</span>
+                </button>
+                <button type="button" class="view-mode-pill" id="btn-comp-mode-morph" onclick="FoldersEngine.setCompViewMode('morph')">
+                  <span>🧬 Full Face Morph & Overlay</span>
+                </button>
+                <button type="button" class="view-mode-pill" id="btn-comp-mode-split" onclick="FoldersEngine.setCompViewMode('split')">
+                  <span>⟷ Split Curtain Slider</span>
+                </button>
               </div>
 
               <!-- Action: Run Full AI Scan Button -->
               <div class="ai-scan-cta-row">
                 <button id="btn-trigger-ai-scan" class="btn btn-primary btn-ai-scan" onclick="FoldersEngine.runAIBiometricAnalysis()">
                   <span class="ai-scan-icon">⚡</span>
-                  <span>RUN FULL AI BIOMETRIC ANALYSIS & FACE SCAN</span>
+                  <span id="btn-ai-scan-label">RUN FULL AI BIOMETRIC ANALYSIS & FACE SCAN</span>
                 </button>
               </div>
 
-              <!-- Interactive Split Comparison Viewport -->
-              <div class="split-comparison-container" id="split-comparison-viewport">
+              <!-- AI Scanning Multi-Stage Progress Telemetry HUD -->
+              <div class="ai-scan-progress-hud" id="ai-scan-progress-hud" style="display: none;">
+                <div class="ai-progress-header">
+                  <span class="ai-pulse-dot"></span>
+                  <span class="ai-progress-status" id="ai-scan-stage-text">INITIALIZING DUAL-SPECTRAL NEURAL RETINA SCANNER...</span>
+                  <span class="ai-progress-pct" id="ai-scan-pct">0%</span>
+                </div>
+                <div class="ai-progress-track">
+                  <div class="ai-progress-fill" id="ai-scan-progress-bar" style="width: 0%;"></div>
+                </div>
+                <div class="ai-progress-steps-row">
+                  <span class="ai-step-item active" id="ai-step-1">1. Retinal Mesh</span>
+                  <span class="ai-step-item" id="ai-step-2">2. 68 Full Landmarks</span>
+                  <span class="ai-step-item" id="ai-step-3">3. Mandibular Contour</span>
+                  <span class="ai-step-item" id="ai-step-4">4. Ascension Metric</span>
+                </div>
+              </div>
+
+              <!-- VIEWPORT 1: FULL FACE SIDE-BY-SIDE (Both Full Faces Completely Visible) -->
+              <div class="full-face-side-grid" id="full-face-side-viewport">
+                <!-- Left Card: Full Before Face -->
+                <div class="full-face-card before-card">
+                  <div class="full-face-card-header">
+                    <span class="full-face-badge before-badge" id="full-label-before">FULL FACE • BEFORE (Baseline)</span>
+                    <span class="full-face-date-tag" id="full-date-before">--</span>
+                  </div>
+                  <div class="full-face-stage">
+                    <img id="full-img-before" src="" alt="Full Before Face" class="full-face-image">
+                    <canvas id="canvas-landmarks-before" class="full-face-canvas"></canvas>
+                    <div class="ai-scan-laser-hud" id="laser-hud-before">
+                      <div class="ai-laser-beam"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Right Card: Full After Face -->
+                <div class="full-face-card after-card">
+                  <div class="full-face-card-header">
+                    <span class="full-face-badge after-badge" id="full-label-after">FULL FACE • AFTER (Progress)</span>
+                    <span class="full-face-date-tag" id="full-date-after">--</span>
+                  </div>
+                  <div class="full-face-stage">
+                    <img id="full-img-after" src="" alt="Full After Face" class="full-face-image">
+                    <canvas id="canvas-landmarks-after" class="full-face-canvas"></canvas>
+                    <div class="ai-scan-laser-hud" id="laser-hud-after">
+                      <div class="ai-laser-beam"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- VIEWPORT 2: FULL FACE MORPH / CROSS-FADE (Seamless Full Face Opacity) -->
+              <div class="full-face-morph-container" id="full-face-morph-viewport" style="display: none;">
+                <div class="morph-controls-bar">
+                  <span class="morph-label">BEFORE</span>
+                  <input type="range" id="morph-opacity-slider" min="0" max="100" value="50" oninput="FoldersEngine.handleMorphSlider(this.value)">
+                  <span class="morph-label">AFTER</span>
+                  <span class="morph-pct-badge" id="morph-pct-badge">50% Blend</span>
+                </div>
+                <div class="morph-stage-wrapper">
+                  <img id="morph-img-before" src="" alt="Before Face" class="morph-img morph-base">
+                  <img id="morph-img-after" src="" alt="After Face" class="morph-img morph-overlay" style="opacity: 0.5;">
+                  <canvas id="canvas-landmarks-morph" class="full-face-canvas"></canvas>
+                  <div class="ai-scan-laser-hud" id="laser-hud-morph">
+                    <div class="ai-laser-beam"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- VIEWPORT 3: CLASSIC SPLIT CURTAIN (Draggable Divider) -->
+              <div class="split-comparison-container" id="split-comparison-viewport" style="display: none;">
                 <!-- AI Scan HUD Laser Overlay -->
                 <div class="ai-scan-laser-hud" id="ai-scan-laser-hud">
                   <div class="ai-laser-beam" id="ai-laser-beam"></div>
@@ -1516,13 +1598,13 @@
                   <div class="handle-line"></div>
                   <div class="handle-button">⟷</div>
                 </div>
+              </div>
 
-                <!-- Placeholder when no photos yet -->
-                <div class="split-placeholder" id="split-empty-placeholder">
-                  <div class="placeholder-icon">🧬</div>
-                  <h4>No Comparison Photos Yet</h4>
-                  <p>Snap your first photo using the camera studio on the left. Everyday photos are saved into date folders on disk!</p>
-                </div>
+              <!-- Shared Placeholder when no photos yet -->
+              <div class="split-placeholder" id="split-empty-placeholder" style="display: none;">
+                <div class="placeholder-icon">🧬</div>
+                <h4>No Comparison Photos Yet</h4>
+                <p>Snap your first photo using the camera studio on the left. Everyday photos are saved into date folders on disk!</p>
               </div>
 
               <!-- AI Biometric Diagnostic Intelligence Report Card -->
