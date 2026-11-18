@@ -1,0 +1,23 @@
+{
+  "name": "WayToHeaven — by Cherish Goyal",
+  "short_name": "WayToHeaven",
+  "description": "WayToHeaven — Premium Personal Habit Tracking & Self-Improvement App created by Cherish Goyal",
+  "start_url": "./waytoheaven.html",
+  "display": "standalone",
+  "background_color": "#080C14",
+  "theme_color": "#080C14",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

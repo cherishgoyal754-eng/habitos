@@ -1,0 +1,19 @@
+{
+  "name": "habitos",
+  "version": "1.0.0",
+  "description": "HabitOS — Premium Personal Habit Tracking & Self-Improvement Engine",
+  "type": "module",
+  "scripts": {
+    "start": "npx serve ."
+  },
+  "keywords": [
+    "habits",
+    "habit-tracker",
+    "productivity",
+    "macos",
+    "threejs",
+    "analytics"
+  ],
+  "author": "Cherish Goyal",
+  "license": "MIT"
+}
